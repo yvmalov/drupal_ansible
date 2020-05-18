@@ -1,0 +1,334 @@
+---
+
+#install packages
+install_list_packages: aptitude,unzip,sudo,rsync,tmux,atop,iftop,iotop,curl,ca-certificates,apt-transport-https,net-tools,python-pip
+# for php7.1 install packages: ca-certificates,apt-transport-https
+# Zabbix-agent: python-pip
+
+
+#Setup exim
+exim4_dc_eximconfig_configtype: internet
+exim4_dc_other_hostnames: 'ansible_hostname'
+exim4_dc_localdelivery: 'mail_spool'
+
+
+# Setup firewall
+ferm_enabled: true
+ferm_root_flags.cap_net_admin: []
+ferm_input_list:
+  - type: dport_accept
+    protocol: tcp
+    dport: ["http", "https", "30022"]
+    accept_any: true
+  - type: dport_accept # for Zabbix
+    protocol: tcp
+    dport: ["30050"]
+    saddr: ["10.10.10.10"]
+
+
+#Setup fail2ban
+fail2ban_services:
+  - name: ssh
+    enabled: true
+    port: 30022
+    filter: sshd
+    logpath: /var/log/auth.log
+    maxretry: 5
+
+
+# Setup memcached
+memcached_user: www-data
+memcached_port: 11211
+memcached_listen_ip: 127.0.0.1
+memcached_memory_limit: 256
+memcached_connections: 1024
+memcached_log_file: /var/log/memcached.log
+memcached_log_verbosity: ""
+# Drupal - install module memcache and add lines to settings.php:
+#$conf['cache_backends'][] = 'sites/all/modules/memcache/memcache.inc';
+#$conf['cache_default_class'] = 'MemCacheDrupal';
+#$conf['memcache_key_prefix'] = 'test-cache_page';
+#$conf['cache_class_cache_form'] = 'DrupalDatabaseCache';
+#test https://www.cyberciti.biz/faq/howto-install-memcached-on-ubuntu-linux-1204-1404/
+
+
+# setup Redis
+redis_port: 6379
+redis_bind_interface: 127.0.0.1
+redis_rdbcompression: "yes"
+redis_dbfilename: dump.rdb
+redis_dbdir: /var/lib/redis
+redis_loglevel: "notice"
+redis_logfile: /var/log/redis/redis-server.log
+redis_maxmemory: 512mb
+redis_databases: 1
+redis_requirepass: "KhSaFEJ8S8Vgz26UjYiv"
+# Drupal - install module redis and add lines to settings.php:
+#$conf['redis_client_interface'] = 'PhpRedis';
+#$conf['redis_client_host'] = '127.0.0.1';
+#$conf['redis_client_port'] = 6379;
+#$conf['lock_inc'] = 'sites/all/modules/redis/redis.lock.inc';
+#$conf['path_inc'] = 'sites/all/modules/redis/redis.path.inc';
+#$conf['cache_backends'][] = 'sites/all/modules/redis/redis.autoload.inc';
+#$conf['cache_default_class'] = 'Redis_Cache';
+#$conf['cache_class_cache_form'] = 'DrupalDatabaseCache';
+#$conf['redis_client_base'] = 12;
+#$conf['cache_prefix'] = 'taxaccounting.ee';
+#$conf['redis_client_password'] = "KhSaFEJ8S8Vgz26UjYiv";
+
+
+# Setup php
+php_default_version_debian: "7.1"
+php_expose_php: "Off"
+php_packages:
+  - php7.1
+  - php7.1-mcrypt
+  - php7.1-cli
+  - php7.1-common
+  - php7.1-curl
+  - php7.1-dev
+  - php7.1-gd
+  - php7.1-mysql
+  - php7.1-mbstring
+  - php-pear
+  - php7.1-xml
+  - libpcre3-dev
+  - php-memcached
+  - php-redis
+  - php7.1-zip
+php_memory_limit: "256M"
+php_max_execution_time: "180"
+php_post_max_size: "8M"
+php_upload_max_filesize: "2M"
+php_date_timezone: "Europe/Helsinki"
+php_enable_webserver: false
+php_enable_php_fpm: false
+php_enable_apc: false
+php_sendmail_path: "/usr/sbin/sendmail -t -i"
+php_short_open_tag: false
+#php_opcache_enabled_in_ini: false
+php_opcache_enable: "0"
+php_opcache_enable_cli: "0"
+php_opcache_memory_consumption: "128"
+php_opcache_interned_strings_buffer: "16"
+php_opcache_max_accelerated_files: "2048"
+php_opcache_max_wasted_percentage: "5"
+php_opcache_validate_timestamps: "1"
+php_opcache_revalidate_freq: "2"
+php_opcache_max_file_size: "0"
+
+
+# Setup php-fpm
+php_fpm_version: 7.1
+php_fpm_default_pool:
+  delete: yes
+  name: www.conf
+
+php_fpm_pool_defaults:
+  pm: dynamic
+  pm.max_children: 10
+  pm.start_servers: 3
+  pm.min_spare_servers: 3
+  pm.max_spare_servers: 6
+  listen.group: www-data
+  listen.owner: www-data
+  catch_workers_output: yes
+  php_admin_value[memory_limit]: 512M
+  php_admin_value[upload_max_filesize]: 32M
+  php_admin_value[post_max_size]: 32M
+
+php_fpm_pools:
+  - name: test
+    user: www-data
+    group: www-data
+    chdir: /
+    listen: /var/run/php/php-fpm-test.sock
+    pm: ondemand
+    pm.max_children: 30
+    pm.start_servers: 2
+    pm.min_spare_servers: 1
+    pm.max_spare_servers: 3
+    pm.process_idle_timeout: 10s
+    pm.max_requests: 100
+    listen_host: 127.0.0.1
+    catch_workers_output: yes
+    php_admin_value[max_execution_time]: 180
+
+
+# Setup nginx
+nginx_conf_template: "{{ playbook_dir }}/templates/nginx.conf.j2"
+nginx_user: www-data
+nginx_default_release: ""
+nginx_worker_processes: 1
+nginx_server_tokens: "off"
+nginx_log_format: |-
+  '$remote_addr - $remote_user [$time_local] "$request" '
+  '$status $body_bytes_sent "$http_referer" '
+  '"$http_user_agent" "$http_x_forwarded_for" $request_time'
+nginx_sendfile: "on"
+nginx_error_log: "/var/log/nginx/error.log"
+nginx_access_log: "/var/log/nginx/access.log main buffer=16k flush=2m"
+nginx_client_max_body_size: "64m"
+nginx_remove_default_vhost: true
+
+nginx_vhosts:
+#000-default
+  - listen: "80 default_server"
+    server_name: "_"
+    filename: "000-default.conf"
+    root: "/var/www/html"
+    index: "index.php index.html index.htm"
+    extra_parameters: |
+      return 404;
+#test.com
+  - listen: "80"
+    server_name: "test.com"
+    filename: "test.com.conf"
+    server_name_redirect: "www.test.com"
+    extra_parameters: |
+      if ($scheme = http) {
+        return 301 https://$server_name$request_uri;
+      }
+  - listen: "443 ssl"
+    server_name: "test.com"
+    filename: "test.com.ssl.conf"
+    index: "index.php index.html index.htm"
+    root: "/home/webmaster/domains/test.com/html"
+    access_log: "/var/log/nginx/test.com-access.log main"
+    error_log: "/var/log/nginx/test.com-error.log"
+    extra_parameters: |
+      fastcgi_buffers 16 16k; 
+      fastcgi_buffer_size 32k;
+      ssl_certificate     /etc/letsencrypt/live/test.com/fullchain.pem;
+      ssl_certificate_key /etc/letsencrypt/live/test.com/privkey.pem;
+      ssl_protocols       TLSv1.1 TLSv1.2;
+      ssl_ciphers         HIGH:!aNULL:!MD5;
+      location ~* ^.+\.(ico|jpg|jpeg|gif|png|svg|js|css|mp3|ogg|mpe?g|avi|zip|gz|bz2?|rar|swf|html)$ {
+        try_files $uri @rewrite;
+        expires max;
+        log_not_found off;
+      }
+      location = /robots.txt {
+        allow all;
+        log_not_found off;
+        access_log off;
+      }
+      location ~ (^|/)\. {
+        return 403;
+      }
+      location ~ \..*/.*\.php$ {
+        return 403;
+      }
+      # Block access to scripts in site files directory
+      location ~ ^/sites/[^/]+/files/.*\.php$ {
+        deny all;
+      }
+      location / {
+        error_page 418 = @rewrite;
+        if ($http_cookie ~* "SESS") { return 418; }
+        if ($request_method !~ ^(GET|HEAD)$ ) { return 418; }
+        default_type text/html;
+        proxy_intercept_errors on;
+        error_page 404 502 = @rewrite;
+        try_files $uri /index.php?$query_string;
+      }
+      location ~ '\.php$|^/update.php|/cron.php' {
+        fastcgi_pass unix:/var/run/php/php-fpm-test.sock;
+        fastcgi_split_path_info ^(.+?\.php)(|/.*)$;
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param SERVER_SOFTWARE nginx/$nginx_version;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_param QUERY_STRING $query_string;
+        fastcgi_intercept_errors on;
+        include fastcgi_params;
+      }
+      location @rewrite {
+        rewrite ^/(.*)$ /index.php?q=$1;
+      }
+      # Fighting with Styles? This little gem is amazing
+      location ~ ^/sites/.*/files/styles/ {
+        try_files $uri @rewrite;
+      }
+      # Handle private files through Drupal. Private file's path can come with a language prefix
+      location ~ ^(/[a-z\-]+)?/system/files/ {
+        try_files $uri /index.php?$query_string;
+      }
+      location ~* \.(eot|ttf|woff|woff2)$ {
+        add_header Access-Control-Allow-Origin *;
+      }
+      location ~* \.(engine|inc|info|install|make|module|profile|test|po|sh|.*sql|theme|tpl(\.php)?|xtmpl)$|^(\..*|Entries.*|Repository|Root|Tag|Template)$|\.php_ {
+      deny all;
+      }
+
+
+#Setup Certbot (Let's Encrypt)
+certbot_admin_email: test@test.com
+certbot_create_method: standalone
+certbot_create_if_missing: true
+certbot_create_standalone_stop_services:
+  - nginx
+certbot_certs:
+  - domains:
+    - test.com
+
+
+# Setup mysql
+mysql_packages:
+  - mysql-client
+  - mysql-server
+  - python-mysqldb
+
+mysql_root_password: YMUWFsfd2kR25pT
+mysql_socket: /var/run/mysqld/mysqld.sock
+mysql_users:
+  - name: test
+    host: "localhost"
+    password: Mxw78fD7XZ(*!Ay
+    priv: test.*:ALL
+  - name: backup
+    host: "localhost"
+    password: bZcfNLys8KDS2323DDWF@$
+    priv: "*.*:SHOW\ DATABASES,SELECT,SHOW\ VIEW,LOCK\ TABLES,RELOAD"
+mysql_databases:
+  - name: test
+    encoding: utf8
+    collation: utf8_general_ci
+
+mysql_table_open_cache: "4096"
+mysql_innodb_file_per_table: "1"
+mysql_innodb_buffer_pool_size: "1024M"
+#mysql_innodb_additional_mem_pool_size: "10M"
+mysql_innodb_log_file_size: "64M"
+mysql_innodb_log_buffer_size: "5M"
+mysql_innodb_flush_log_at_trx_commit: "2"
+mysql_innodb_lock_wait_timeout: 50
+#mysql_thread_concurrency: 2
+mysql_slow_query_log_enabled: true
+mysql_slow_query_log_file: /var/log/mysql-slow.log
+mysql_slow_query_time: 2
+
+# Setup drush
+drush_launcher_install: false
+drush_install_from_source: true
+
+# Setup composer
+composer_home_path: '/home/webmaster'
+composer_home_owner: webmaster
+composer_home_group: webmaster
+
+# Setup users
+users:
+  - username: webmaster
+    name: webmaster
+    groups: ['www-data', 'webmaster']
+    uid: 1001
+    shell: /bin/bash
+    password: $6$oRgJcMWI$uLDF%oUpShs.f/u/9KAN15yefZy3C.rcWOgHx1VZOqFG53egFy53tHUimge06qlB9MSDF@!@138NvDQWc0
+    authorized_keys:
+      - "ssh-rsa AAAAB3NzaC1yc2EAAAAAADARFSR#FSFAD@DFSADADDADSFDfCQ1EYvxgOrhSQHfUuTeq8vTRoO8XMH2zebIEUcJTIwhxCPwr4uoMi0lxeJ01mdKtDjx11Ovjib03i3CMmLmkLGmlbQuyOMw/1QpvSUGJnrc4WgDQEJJCBefssdfsf03erD0Ac+k9mlHM8iwxgx9RKwjY7Ix7+LwW8IgS1kfQ3RePzLWQPw2eJRRjHS/fGL#@S)r4drt5OLKXFSDFSDF_#RQDSFLSFgURU4r6TDRd+0sQGoptlBumlTnEdu/XOYkLfdldflsdf/*(*!!@viqW/8ck8/j3Z7+2/6RcCzGgriMcXQUBEPLuUePuYDFDFDFDFDqwutJ test@test"
+
+
+# Setup Zabbix-agent
+zabbix_agent_server: 176.112.198.19
+zabbix_agent_listenport: 30050

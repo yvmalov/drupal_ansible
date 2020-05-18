@@ -1,0 +1,29 @@
+- hosts: server.hs01
+  remote_user: support
+  sudo: yes
+  vars_files:
+    - vars/main.yml
+  roles:
+#    - common-package
+#    - weareinteractive.git
+#    - weareinteractive.users
+#    - weareinteractive.sudo
+#    - geerlingguy.php
+#    - geerlingguy.mysql
+#    - geerlingguy.nginx
+#    - geerlingguy.certbot
+#    - nbz4live.php-fpm
+#    - geerlingguy.redis
+#    - geerlingguy.memcached
+#    - geerlingguy.composer
+#    - geerlingguy.drush
+#    - adegtyarev.ansible_role_exim4
+#    - oefenweb.fail2ban
+#    - debops.core
+#    - debops.ferm
+#    - dj-wasabi.zabbix-agent
+
+#  tasks:
+#  - name: Include task list in playbook
+#    import_tasks: tasks.yaml
+
